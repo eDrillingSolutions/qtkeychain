@@ -24,6 +24,7 @@ public:
 			       QKeychain::JobPrivate* self);
 
 private:
+    QLibrary glib;
     LibSecretKeyring();
 
     static LibSecretKeyring &instance();

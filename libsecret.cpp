@@ -63,6 +63,9 @@ static secret_password_clear_finish_t secret_password_clear_finish_fn = NULL;
 static secret_password_free_t secret_password_free_fn = NULL;
 static secret_error_get_quark_t secret_error_get_quark_fn = NULL;
 
+typedef void (*g_error_free_t) (GError        *error);
+static g_error_free_t g_error_free_fn = NULL;
+
 static QKeychain::Error gerrorToCode(const GError *error) {
     if (error->domain != secret_error_get_quark_fn()) {
         return QKeychain::OtherError;
@@ -122,7 +125,7 @@ on_password_lookup (GObject *source,
         }
     }
     if (error) {
-        g_error_free (error);
+        g_error_free_fn(error);
     }
 
     if (password) {
@@ -155,7 +158,7 @@ on_password_stored (GObject *source,
         }
     }
     if (error != NULL) {
-        g_error_free (error);
+        g_error_free_fn(error);
     }
 }
 
@@ -179,7 +182,7 @@ on_password_cleared (GObject *source,
         }
     }
     if (error != NULL) {
-        g_error_free (error);
+        g_error_free_fn(error);
     }
 }
 
@@ -198,6 +201,8 @@ bool LibSecretKeyring::isAvailable() {
     const LibSecretKeyring& keyring = instance();
     if (!keyring.isLoaded())
         return false;
+    if (!keyring.glib.isLoaded())
+        return false;
     if (secret_password_lookup_fn == NULL)
         return false;
     if (secret_password_lookup_finish_fn == NULL)
@@ -213,6 +218,8 @@ bool LibSecretKeyring::isAvailable() {
     if (secret_password_free_fn == NULL)
         return false;
     if (secret_error_get_quark_fn == NULL)
+        return false;
+    if (g_error_free_fn == NULL)
         return false;
     return true;
 #else
@@ -305,7 +312,8 @@ bool LibSecretKeyring::deletePassword(const QString &key, const QString &service
 }
 
 LibSecretKeyring::LibSecretKeyring()
-    : QLibrary("secret-1")
+    : QLibrary("secret-1"),
+      glib("glib-2.0")
 {
 #ifdef HAVE_LIBSECRET
     if (load()) {
@@ -325,6 +333,10 @@ LibSecretKeyring::LibSecretKeyring()
                 (secret_password_free_t)resolve("secret_password_free");
         secret_error_get_quark_fn =
                 (secret_error_get_quark_t)resolve("secret_error_get_quark");
+    }
+
+    if (glib.load()) {
+        g_error_free_fn = (g_error_free_t)glib.resolve("g_error_free");
     }
 #endif
 }
