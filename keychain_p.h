@@ -15,17 +15,6 @@
 #include <QSettings>
 #include <QQueue>
 
-#if defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN) && !defined(Q_OS_ANDROID)
-
-#include <QDBusPendingCallWatcher>
-
-#include "kwallet_interface.h"
-#else
-
-class QDBusPendingCallWatcher;
-
-#endif
-
 #include "keychain.h"
 
 namespace QKeychain {
@@ -50,22 +39,8 @@ public:
     QByteArray data;
 
 #if defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN) && !defined(Q_OS_ANDROID)
-    org::kde::KWallet* iface;
-    int walletHandle;
-
     static void gnomeKeyring_readCb( int result, const char* string, JobPrivate* data );
     static void gnomeKeyring_writeCb( int result, JobPrivate* self );
-
-    virtual void fallbackOnError(const QDBusError& err) = 0;
-
-protected Q_SLOTS:
-    void kwalletWalletFound( QDBusPendingCallWatcher* watcher );
-    virtual void kwalletFinished( QDBusPendingCallWatcher* watcher );
-    virtual void kwalletOpenFinished( QDBusPendingCallWatcher* watcher );
-#else
-    void kwalletWalletFound( QDBusPendingCallWatcher* ) {}
-    virtual void kwalletFinished( QDBusPendingCallWatcher* ) {}
-    virtual void kwalletOpenFinished( QDBusPendingCallWatcher*  ) {}
 #endif
 
 protected:
@@ -93,20 +68,6 @@ public:
     explicit ReadPasswordJobPrivate( const QString &service_, ReadPasswordJob* qq );
     void scheduledStart();
 
-#if defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN) && !defined(Q_OS_ANDROID)
-    void fallbackOnError(const QDBusError& err);
-
-private Q_SLOTS:
-    void kwalletOpenFinished( QDBusPendingCallWatcher* watcher );
-    void kwalletEntryTypeFinished( QDBusPendingCallWatcher* watcher );
-    void kwalletFinished( QDBusPendingCallWatcher* watcher );
-#else //moc's too dumb to respect above macros, so just define empty slot implementations
-private Q_SLOTS:
-    void kwalletOpenFinished( QDBusPendingCallWatcher* ) {}
-    void kwalletEntryTypeFinished( QDBusPendingCallWatcher* ) {}
-    void kwalletFinished( QDBusPendingCallWatcher* ) {}
-#endif
-
     friend class ReadPasswordJob;
 };
 
@@ -115,10 +76,6 @@ class WritePasswordJobPrivate : public JobPrivate {
 public:
     explicit WritePasswordJobPrivate( const QString &service_, WritePasswordJob* qq );
     void scheduledStart();
-
-#if defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN) && !defined(Q_OS_ANDROID)
-    void fallbackOnError(const QDBusError& err);
-#endif
 
     friend class WritePasswordJob;
 };
@@ -129,10 +86,6 @@ public:
     explicit DeletePasswordJobPrivate( const QString &service_, DeletePasswordJob* qq );
 
     void scheduledStart();
-
-#if defined(Q_OS_UNIX) && !defined(Q_OS_DARWIN) && !defined(Q_OS_ANDROID)
-    void fallbackOnError(const QDBusError& err);
-#endif
 
 protected:
     void doStart();
